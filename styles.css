@@ -1,6 +1,3 @@
-/* ═══════════════════════════════════════════════════════════
-   NEURAL ARENA — styles.css
-   ═══════════════════════════════════════════════════════════ */
 
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
@@ -23,7 +20,6 @@ body {
   inset: 0;
 }
 
-/* ── SCANLINES ──────────────────────────────────────────── */
 body::after {
   content: '';
   position: fixed;
@@ -39,7 +35,6 @@ body::after {
   z-index: 100;
 }
 
-/* ── HUD WRAPPER ────────────────────────────────────────── */
 #hud {
   position: fixed;
   inset: 0;
@@ -48,7 +43,6 @@ body::after {
   display: none;
 }
 
-/* ── CROSSHAIR ──────────────────────────────────────────── */
 #crosshair {
   position: absolute;
   top: 50%;
@@ -87,7 +81,6 @@ body::after {
   left: -2.5px;
 }
 
-/* ── HUD TOP BAR ────────────────────────────────────────── */
 #hud-top {
   position: absolute;
   top: 0;
@@ -123,7 +116,6 @@ body::after {
   text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
 }
 
-/* ── HUD BOTTOM BAR ─────────────────────────────────────── */
 #hud-btm {
   position: absolute;
   bottom: 22px;
@@ -175,7 +167,7 @@ body::after {
   box-shadow: 0 0 8px #0f6;
 }
 
-/* ── CONTROLS STRIP ─────────────────────────────────────── */
+
 #ctrlstrip {
   position: fixed;
   top: 58px;
@@ -190,7 +182,6 @@ body::after {
   display: none;
 }
 
-/* ── BACK BUTTON ────────────────────────────────────────── */
 #back-btn {
   position: fixed;
   bottom: 22px;
@@ -219,7 +210,6 @@ body::after {
   box-shadow: 0 0 16px rgba(0, 200, 255, 0.3);
 }
 
-/* ── CONFIRM DIALOG ─────────────────────────────────────── */
 #confirm-box {
   position: fixed;
   inset: 0;
@@ -256,7 +246,6 @@ body::after {
   gap: 16px;
 }
 
-/* ── OVERLAY SCREENS ────────────────────────────────────── */
 #overlay {
   position: fixed;
   inset: 0;
@@ -343,7 +332,6 @@ body::after {
   line-height: 2.2;
 }
 
-/* ── FX OVERLAYS ────────────────────────────────────────── */
 #vignette {
   position: fixed;
   inset: 0;
@@ -372,7 +360,6 @@ body::after {
   transition: background 0s;
 }
 
-/* ── HIDING WARNING ─────────────────────────────────────── */
 #hidewarn {
   position: fixed;
   top: 27%;
