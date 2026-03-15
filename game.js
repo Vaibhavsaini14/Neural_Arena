@@ -1,8 +1,3 @@
-// ═══════════════════════════════════════════════════════════
-//  NEURAL ARENA — game.js
-// ═══════════════════════════════════════════════════════════
-
-// ── Difficulty Presets ─────────────────────────────────────
 const DIFF = {
   easy:   { speed: 3.0,  rate: 3000, spread: 0.15, dmg: 12, name: 'EASY',   key: 'easy'   },
   medium: { speed: 5.0,  rate: 2000, spread: 0.07, dmg: 18, name: 'MEDIUM', key: 'medium' },
@@ -10,7 +5,6 @@ const DIFF = {
 };
 let diff = DIFF.medium;
 
-// ── Renderer / Scene / Camera ──────────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -26,33 +20,28 @@ scene.fog   = new THREE.FogExp2(0x000408, 0.015);
 
 const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 150);
 
-// ── Player Container ───────────────────────────────────────
 const playerObj = new THREE.Object3D();
 playerObj.position.set(0, 1.7, 10);
 scene.add(playerObj);
 playerObj.add(camera);
 camera.position.set(0, 0, 0);
 
-// ── Game State ─────────────────────────────────────────────
 const GS = {
-  phase: 'menu',   // menu | playing | levelclear | gameover | confirm
+  phase: 'menu',
   level: 1, hp: 100, score: 0, shots: 0, enemyCount: 0,
   hidingTime: 0, hidingWarn: false, piercing: false,
   lastPos: new THREE.Vector3(), keys: {}
 };
 
-// ── Runtime Arrays ─────────────────────────────────────────
 let enemies   = [];
 let pBullets  = [];
 let eBullets  = [];
 let pickups   = [];
 let particles = [];
 
-// ── Static Collision Data ──────────────────────────────────
 let wallBoxes  = [];
 let coverBoxes = [];
 
-// ── Constants ──────────────────────────────────────────────
 const ARENA       = 24;
 const WALL_H      = 7;
 const P_SPEED     = 8;
@@ -65,11 +54,6 @@ const BOT_HP      = 3;
 const HIDE_WARN   = 5;
 const HIDE_PIERCE = 8;
 
-// ═══════════════════════════════════════════════════════════
-//  SCENE CONSTRUCTION
-// ═══════════════════════════════════════════════════════════
-
-// Lights ────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0x040810, 1.6));
 scene.add(new THREE.HemisphereLight(0x001a30, 0x000408, 0.7));
 
@@ -88,7 +72,6 @@ scene.add(ctrLight);
   scene.add(pl);
 });
 
-// Floor ─────────────────────────────────────────────────────
 {
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(ARENA * 2, ARENA * 2),
@@ -102,7 +85,6 @@ scene.add(ctrLight);
   scene.add(floor);
 }
 
-// Cyber grid ────────────────────────────────────────────────
 const g1 = new THREE.GridHelper(ARENA * 2, 48, 0x003a66, 0x001a33);
 g1.position.y = 0.012;
 scene.add(g1);
@@ -111,7 +93,6 @@ const g2 = new THREE.GridHelper(ARENA * 2, 12, 0x0066bb, 0x002244);
 g2.position.y = 0.015;
 scene.add(g2);
 
-// Walls ─────────────────────────────────────────────────────
 function mkWall(w, h, d, x, y, z, col) {
   const m = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
@@ -124,7 +105,6 @@ function mkWall(w, h, d, x, y, z, col) {
   m.castShadow = m.receiveShadow = true;
   scene.add(m);
 
-  // Top neon strip
   const strip = new THREE.Mesh(
     new THREE.BoxGeometry(w + 0.02, 0.09, d + 0.02),
     new THREE.MeshBasicMaterial({ color: 0x0077ff, transparent: true, opacity: 0.85 })
@@ -142,7 +122,6 @@ const wallMeshes = [
 ];
 wallBoxes = wallMeshes.map(w => new THREE.Box3().setFromObject(w));
 
-// Mid-wall accent lights
 [
   [0, WALL_H - 0.4, -ARENA + 1],
   [0, WALL_H - 0.4,  ARENA - 1],
@@ -154,7 +133,6 @@ wallBoxes = wallMeshes.map(w => new THREE.Box3().setFromObject(w));
   scene.add(pl);
 });
 
-// Pillars / Cover ────────────────────────────────────────────
 const PILLAR_DEFS = [
   { x: -11, z:  -9, w: 3.0, h: 4, d: 3.0, c: 0x04101d },
   { x:  11, z:  -9, w: 3.0, h: 4, d: 3.0, c: 0x04101d },
@@ -178,31 +156,25 @@ PILLAR_DEFS.forEach((def, i) => {
   m.castShadow = m.receiveShadow = true;
   scene.add(m);
 
-  // Neon edge wireframe
   const nc = NEON_C[i % NEON_C.length];
   m.add(new THREE.LineSegments(
     new THREE.EdgesGeometry(geo),
     new THREE.LineBasicMaterial({ color: nc, transparent: true, opacity: 0.55 })
   ));
 
-  // Top glow point light
   const pl = new THREE.PointLight(nc, 1.1, 10);
   pl.position.set(def.x, def.h * 2 + 1.2, def.z);
   scene.add(pl);
 
-  // Cover AABB for collision / hiding detection
   const box = new THREE.Box3().setFromObject(m);
   coverBoxes.push(box);
 });
 
-// ═══════════════════════════════════════════════════════════
-//  HOVER-BOT — Enemy Class
-// ═══════════════════════════════════════════════════════════
 class HoverBot {
   constructor(spawnPos) {
     this.hp       = BOT_HP;
     this.alive    = true;
-    this.state    = 'PATROL';   // PATROL | CHASE | SHOOT
+    this.state    = 'PATROL';
     this.stTimer  = 0;
     this.lastFire = 0;
     this.floatPh  = Math.random() * Math.PI * 2;
@@ -211,7 +183,6 @@ class HoverBot {
     this.group = new THREE.Group();
     this.group.position.copy(spawnPos);
 
-    // SpotLight world-space target
     this.spotTarget = new THREE.Object3D();
     this.spotTarget.position.set(spawnPos.x, 0, spawnPos.z);
     scene.add(this.spotTarget);
@@ -229,7 +200,7 @@ class HoverBot {
   }
 
   _build() {
-    // HEAD — metallic sphere with icosahedron edge lines
+
     this.headMat = new THREE.MeshStandardMaterial({
       color: 0x1a0505, roughness: 0.08, metalness: 0.96,
       emissive: 0x550000, emissiveIntensity: 0.5
@@ -241,7 +212,6 @@ class HoverBot {
     ));
     this.group.add(this.head);
 
-    // EYE — glowing sphere
     this.eyeMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     this.eye    = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), this.eyeMat);
     this.eye.position.set(0, 0.06, 0.5);
@@ -249,14 +219,12 @@ class HoverBot {
     this.eyeLight = new THREE.PointLight(0x00ff00, 2.8, 8);
     this.eye.add(this.eyeLight);
 
-    // SPOTLIGHT (scanning / tracking)
     this.spot = new THREE.SpotLight(0x00ff44, 5, 24, Math.PI / 7, 0.48);
     this.spot.position.set(0, -0.1, 0.35);
     this.spot.castShadow = false;
     this.head.add(this.spot);
     this.spot.target = this.spotTarget;
 
-    // PRIMARY RING — horizontal torus
     this.ring1 = new THREE.Mesh(
       new THREE.TorusGeometry(0.9, 0.077, 8, 42),
       new THREE.MeshStandardMaterial({
@@ -267,7 +235,6 @@ class HoverBot {
     this.ring1.rotation.x = Math.PI / 2;
     this.group.add(this.ring1);
 
-    // SECONDARY RING — tilted torus
     this.ring2 = new THREE.Mesh(
       new THREE.TorusGeometry(0.73, 0.052, 8, 36),
       new THREE.MeshStandardMaterial({
@@ -278,7 +245,6 @@ class HoverBot {
     this.ring2.rotation.set(Math.PI / 3.5, 0, Math.PI / 5);
     this.group.add(this.ring2);
 
-    // ENERGY CORE — spinning octahedron
     this.core = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.19, 0),
       new THREE.MeshBasicMaterial({ color: 0xff6600 })
@@ -286,11 +252,9 @@ class HoverBot {
     this.core.position.y = -0.22;
     this.group.add(this.core);
 
-    // BODY GLOW
     this.bodyLight = new THREE.PointLight(0xff2200, 1.6, 11);
     this.group.add(this.bodyLight);
 
-    // HP PIPS — small spheres above head
     this.pips = [];
     for (let i = 0; i < BOT_HP; i++) {
       const pip = new THREE.Mesh(
@@ -303,7 +267,6 @@ class HoverBot {
     }
   }
 
-  // State machine transitions ─────────────────────────────
   _setState(s) {
     if (this.state === s) return;
     this.state   = s;
@@ -324,7 +287,6 @@ class HoverBot {
     const t    = Date.now() * 0.001;
     const pPos = playerObj.position.clone();
 
-    // Float & spin animations
     this.group.position.y  = 2.4 + Math.sin(t * 1.6 + this.floatPh) * 0.28;
     this.ring1.rotation.z += dt * 1.85;
     this.ring2.rotation.y -= dt * 1.35;
@@ -336,7 +298,6 @@ class HoverBot {
     const dist = toP.length();
     this.stTimer += dt;
 
-    // ── PATROL ──────────────────────────────────────────
     if (this.state === 'PATROL') {
       const sw = Math.sin(t * 1.35 + this.floatPh) * 0.55;
       this.spotTarget.position.set(
@@ -360,7 +321,6 @@ class HoverBot {
       if (dist < DETECT_R) this._setState('CHASE');
     }
 
-    // ── CHASE ────────────────────────────────────────────
     else if (this.state === 'CHASE') {
       if (dist > DETECT_R + 5) { this._setState('PATROL'); return; }
       if (dist < SHOOT_R)      { this._setState('SHOOT');  return; }
@@ -374,7 +334,6 @@ class HoverBot {
       this.spotTarget.position.copy(pPos);
     }
 
-    // ── SHOOT ────────────────────────────────────────────
     else if (this.state === 'SHOOT') {
       if (dist > SHOOT_R + 3) { this._setState('CHASE'); return; }
 
@@ -424,9 +383,6 @@ class HoverBot {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  BULLET SYSTEM
-// ═══════════════════════════════════════════════════════════
 function mkBullet(pos, dir, isPlayer) {
   const col  = isPlayer ? 0x00ffff : 0xff5500;
   const mesh = new THREE.Mesh(
@@ -436,11 +392,9 @@ function mkBullet(pos, dir, isPlayer) {
   mesh.position.copy(pos);
   scene.add(mesh);
 
-  // Bullet PointLight — illuminates room as it flies
   const bLight = new THREE.PointLight(col, 3.2, 10);
   mesh.add(bLight);
 
-  // Trail — 2-point BufferGeometry line from origin to current pos
   const tPositions = new Float32Array(6);
   tPositions[0] = pos.x; tPositions[1] = pos.y; tPositions[2] = pos.z;
   tPositions[3] = pos.x; tPositions[4] = pos.y; tPositions[5] = pos.z;
@@ -476,7 +430,6 @@ function killBullet(arr, i) {
   arr.splice(i, 1);
 }
 
-// Muzzle Flash ──────────────────────────────────────────────
 function muzzleFlash() {
   const flash = new THREE.Mesh(
     new THREE.SphereGeometry(0.075, 6, 6),
@@ -489,9 +442,6 @@ function muzzleFlash() {
   setTimeout(() => camera.remove(flash), 55);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  PARTICLE / IMPACT SYSTEM
-// ═══════════════════════════════════════════════════════════
 function spawnImpact(pos, col, n = 8) {
   for (let i = 0; i < n; i++) {
     const mesh = new THREE.Mesh(
@@ -534,9 +484,6 @@ function updateParticles(dt) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  HEALTH PICKUPS
-// ═══════════════════════════════════════════════════════════
 function spawnPickup() {
   if (GS.phase !== 'playing') return;
   const grp = new THREE.Group();
@@ -584,9 +531,6 @@ function updatePickups(dt) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  HIDING DETECTION
-// ═══════════════════════════════════════════════════════════
 function updateHiding(dt) {
   const pos = playerObj.position;
   if (pos.distanceTo(GS.lastPos) > 0.38) {
@@ -618,9 +562,6 @@ function updateHiding(dt) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-//  COLLISION HELPERS
-// ═══════════════════════════════════════════════════════════
 const _S = new THREE.Sphere();
 const _B = new THREE.Box3();
 
@@ -640,9 +581,6 @@ function hitsBot(p, bot) {
   return _S.intersectsBox(_B);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  PLAYER SHOOT
-// ═══════════════════════════════════════════════════════════
 let lastShot = 0;
 function doShoot() {
   const now = Date.now();
@@ -661,14 +599,10 @@ function doShoot() {
   updateHUD();
 }
 
-// ═══════════════════════════════════════════════════════════
-//  LEVEL MANAGEMENT
-// ═══════════════════════════════════════════════════════════
 function spawnLevel() {
   const n = GS.level;
   GS.enemyCount = n;
 
-  // Shuffle spawn zones each level (Fisher-Yates)
   const allSpawns = [
     [-16, -16], [16, -16], [-16, 16], [16, 16],
     [0, -20],   [0,  20],  [-20, 0],  [20,  0],
@@ -708,7 +642,6 @@ function nextLevel() {
   GS.level++;
   GS.hidingTime = 0; GS.hidingWarn = false; GS.piercing = false;
 
-  // Full cleanup
   enemies.forEach(e => { scene.remove(e.group); scene.remove(e.spotTarget); });
   enemies = [];
   cleanBullets();
@@ -717,7 +650,6 @@ function nextLevel() {
   pickups.forEach(p => scene.remove(p));
   pickups = [];
 
-  // Randomise player spawn — one of 8 safe positions facing inward
   const playerSpawns = [
     { x:   0, z:  16, ry:  Math.PI        },
     { x:   0, z: -16, ry:  0              },
@@ -744,9 +676,6 @@ function nextLevel() {
   updateHUD();
 }
 
-// ═══════════════════════════════════════════════════════════
-//  GAME FLOW — Start / Reset / GameOver / Menu
-// ═══════════════════════════════════════════════════════════
 function fullCleanup() {
   enemies.forEach(e => {
     if (e.alive) scene.remove(e.group);
@@ -829,9 +758,6 @@ function showMenu() {
     </div>`;
 }
 
-// ═══════════════════════════════════════════════════════════
-//  HUD UPDATE
-// ═══════════════════════════════════════════════════════════
 function updateHUD() {
   document.getElementById('h-lvl').textContent     = GS.level;
   document.getElementById('h-score').textContent   = GS.score;
@@ -865,9 +791,6 @@ function showPickupFlash() {
   _pkT = setTimeout(() => el.classList.remove('fl'), 200);
 }
 
-// ═══════════════════════════════════════════════════════════
-//  MENU CONFIRM DIALOG
-// ═══════════════════════════════════════════════════════════
 function confirmMenu() {
   if (GS.phase !== 'playing') return;
   GS.phase = 'confirm';
@@ -884,9 +807,6 @@ function confirmNo() {
   GS.phase = 'playing';
 }
 
-// ═══════════════════════════════════════════════════════════
-//  INPUT
-// ═══════════════════════════════════════════════════════════
 document.addEventListener('keydown', e => {
   GS.keys[e.code] = true;
   if (e.code === 'Space' && GS.phase === 'playing') {
@@ -903,9 +823,6 @@ document.addEventListener('keyup', e => {
   GS.keys[e.code] = false;
 });
 
-// ═══════════════════════════════════════════════════════════
-//  MAIN LOOP
-// ═══════════════════════════════════════════════════════════
 const clock = new THREE.Clock();
 
 function loop() {
@@ -913,7 +830,6 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const t  = Date.now() * 0.001;
 
-  // Ambient scene animation (always running)
   ctrLight.intensity = 1.5 + Math.sin(t * 0.9) * 0.35;
 
   if (GS.phase !== 'playing') {
@@ -921,7 +837,6 @@ function loop() {
     return;
   }
 
-  // ── Player movement ────────────────────────────────────
   if (GS.keys['ArrowLeft'])  playerObj.rotation.y += ROT_SPEED * dt;
   if (GS.keys['ArrowRight']) playerObj.rotation.y -= ROT_SPEED * dt;
 
@@ -934,18 +849,14 @@ function loop() {
   if (GS.keys['ArrowUp'])   { playerObj.position.addScaledVector(fwd,  P_SPEED * dt); moving = true; }
   if (GS.keys['ArrowDown'])  { playerObj.position.addScaledVector(fwd, -P_SPEED * dt); moving = true; }
 
-  // Clamp to arena bounds
   playerObj.position.x = THREE.MathUtils.clamp(playerObj.position.x, -ARENA + 1.3, ARENA - 1.3);
   playerObj.position.z = THREE.MathUtils.clamp(playerObj.position.z, -ARENA + 1.3, ARENA - 1.3);
 
-  // Head bob
   camera.position.y = moving ? Math.sin(t * 9.5) * 0.042 : camera.position.y * 0.85;
 
-  // ── Systems ────────────────────────────────────────────
   updateHiding(dt);
   enemies.forEach(e => e.update(dt));
 
-  // ── Player bullets ──────────────────────────────────────
   for (let i = pBullets.length - 1; i >= 0; i--) {
     const b = pBullets[i];
     b.mesh.position.addScaledVector(b.dir, b.speed * dt);
@@ -968,7 +879,6 @@ function loop() {
     if (b.mesh.position.distanceTo(playerObj.position) > 85) killBullet(pBullets, i);
   }
 
-  // ── Enemy bullets ───────────────────────────────────────
   for (let i = eBullets.length - 1; i >= 0; i--) {
     const b = eBullets[i];
     b.mesh.position.addScaledVector(b.dir, b.speed * dt);
@@ -989,19 +899,16 @@ function loop() {
     if (b.mesh.position.distanceTo(playerObj.position) > 85) killBullet(eBullets, i);
   }
 
-  // ── Pickups & Particles ─────────────────────────────────
   updatePickups(dt);
   updateParticles(dt);
 
   renderer.render(scene, camera);
 }
 
-// ── Resize ──────────────────────────────────────────────────
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
-// ── Launch ──────────────────────────────────────────────────
-loop();
+loop();;
